@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Card';
 import { getTodayStr, formatTime } from '../services/utils';
 import { Role } from '../types';
-import { Clock, UserCheck, UserMinus } from 'lucide-react';
+import { Clock, UserCheck, UserMinus, Calendar } from 'lucide-react';
 
 export const TodayAttendance: React.FC = () => {
   const { users, attendanceRecords, systemSettings } = useApp();
