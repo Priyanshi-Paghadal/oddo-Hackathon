@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Role, LeaveCategory, LeaveStatus, User } from '../types';
-import { Download, FileText, Activity, Users, Calendar, Plus, PenTool, Globe, Clock, LogIn, LogOut, Coffee, TrendingUp, TrendingDown, CheckCircle, Timer, Bell, X, UserPlus, Trash2, AlertCircle, Mail, BookOpen, HelpCircle, ArrowRight, DollarSign, Key } from 'lucide-react';
+import { Role, LeaveCategory, LeaveStatus, type User } from '../types';
+import { FileText, Activity, Users, Calendar, Plus, PenTool, Globe, Clock, LogIn, LogOut, Coffee, TrendingUp, TrendingDown, CheckCircle, Timer, Bell, X, UserPlus, Trash2, Mail, BookOpen, HelpCircle, ArrowRight, DollarSign, Key } from 'lucide-react';
 import { formatDate, getTodayStr, formatDuration, convertToDDMMYYYY, convertToYYYYMMDD, calculateBondRemaining, parseDDMMYYYY } from '../services/utils';
-import { calculateSalaryBreakdown, SalaryBreakdownRow } from '../services/salaryBreakdownUtils';
+import { calculateSalaryBreakdown, type SalaryBreakdownRow } from '../services/salaryBreakdownUtils';
 import { attendanceAPI, notificationAPI, userAPI, authAPI, holidayAPI } from '../services/api';
 
 // Format hours to hours and minutes format (e.g., 8.25 hours = 8h 15m)
@@ -14,13 +14,14 @@ const formatHoursToHoursMinutes = (hours: number) => {
   const m = Math.round((hours - h) * 60);
 
   if (h === 0 && m === 0) return '0m';
+  
   if (h === 0) return `${m}m`;
   if (m === 0) return `${h}h`;
   return `${h}h ${m}m`;
 };
 
 export const AdminDashboard: React.FC = () => {
-  const { auth, users, auditLogs, exportReports, companyHolidays, addCompanyHoliday, attendanceRecords, systemSettings, updateSystemSettings, refreshData, notifications, leaveRequests, updateUser } = useApp();
+  const { auth, users, auditLogs, companyHolidays, addCompanyHoliday, attendanceRecords, systemSettings, updateSystemSettings, refreshData, notifications, leaveRequests, updateUser } = useApp();
   const [activeTab, setActiveTab] = useState<'summary' | 'users' | 'audit' | 'reports' | 'settings' | 'guidance'>('summary');
 
   // User management states
@@ -31,7 +32,7 @@ export const AdminDashboard: React.FC = () => {
     department: '',
     role: 'Employee',
     joiningDate: '',
-    bonds: [] as Array<{ type: string; periodMonths: string; startDate: string }>,
+    bonds: [] as Array<{ type: string; periodMonths: string; startDate: string; salary?: string }>,
     aadhaarNumber: '',
     guardianName: '',
     mobileNumber: '',
@@ -46,7 +47,6 @@ export const AdminDashboard: React.FC = () => {
 
   const [newHoliday, setNewHoliday] = useState({ date: '', description: '' });
   const [correction, setCorrection] = useState({ userId: '', date: getTodayStr(), checkIn: '', checkOut: '', breakDuration: '', notes: '' });
-  const [reportFilters, setReportFilters] = useState({ start: '', end: '', department: '' });
   const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
   const [selectedUserForReset, setSelectedUserForReset] = useState<User | null>(null);
   const [newEmployeePassword, setNewEmployeePassword] = useState('');
@@ -314,7 +314,7 @@ export const AdminDashboard: React.FC = () => {
         .map(b => ({
           type: b.type,
           periodMonths: parseInt(b.periodMonths),
-          salary: parseFloat(b.salary) || 0
+          salary: b.salary ? parseFloat(b.salary) || 0 : 0
         }));
 
       if (bonds.length > 0) {
@@ -442,7 +442,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Helper function to calculate extra time leave balance and carryover
-  const calculateEmployeeBalance = (userId: string, monthRecords: any[], monthLeaves: any[]) => {
+  const calculateEmployeeBalance = (_userId: string, monthRecords: any[], monthLeaves: any[]) => {
     // Calculate extra time leave hours taken
     const extraTimeLeaveHours = monthLeaves
       .filter(leave => {
@@ -464,9 +464,9 @@ export const AdminDashboard: React.FC = () => {
           const hasTimeFields = leave.startTime && leave.endTime &&
             leave.startTime.trim() !== '' && leave.endTime.trim() !== '';
 
-          if (hasTimeFields) {
+          if (hasTimeFields && leave.startTime && leave.endTime) {
             // Calculate hours per day: (end time - start time)
-            const hoursPerDay = calculateHoursPerDay(leave.startTime, leave.endTime);
+            const hoursPerDay = calculateHoursPerDay(leave.startTime!, leave.endTime!);
 
             // Calculate number of days (excluding Sundays and holidays)
             const numberOfDays = calculateLeaveDays(leave.startDate, leave.endDate);
@@ -593,7 +593,10 @@ export const AdminDashboard: React.FC = () => {
     });
 
     // 4. Calculate Unpaid Leaves
-    const unpaidLeaves = userLeaves.filter(l => l.category === 'Unpaid Leave' || l.category === 'Loss Of Pay');
+    const unpaidLeaves = userLeaves.filter(l => {
+      const category = l.category;
+      return category === LeaveCategory.UNPAID;
+    });
     const unpaidLeaveDays = unpaidLeaves.reduce((sum, leave) => sum + calculateLeaveDays(leave.startDate, leave.endDate), 0);
 
     // Also check for Half Day leaves that are unpaid? Assuming Half Day is paid/partial. 
@@ -664,9 +667,9 @@ export const AdminDashboard: React.FC = () => {
           const hasTimeFields = leave.startTime && leave.endTime &&
             leave.startTime.trim() !== '' && leave.endTime.trim() !== '';
 
-          if (hasTimeFields) {
+          if (hasTimeFields && leave.startTime && leave.endTime) {
             // Calculate hours per day: (end time - start time)
-            const hoursPerDay = calculateHoursPerDay(leave.startTime, leave.endTime);
+            const hoursPerDay = calculateHoursPerDay(leave.startTime!, leave.endTime!);
 
             // Calculate number of days (excluding Sundays and holidays)
             const numberOfDays = calculateLeaveDays(leave.startDate, leave.endDate);
@@ -2502,7 +2505,7 @@ export const AdminDashboard: React.FC = () => {
                           for (let i = 0; i < bondIndex; i++) {
                             const prevBond = filteredBonds[i];
                             const prevPeriodMonths = parseInt(prevBond.periodMonths) || 0;
-                            const prevStart = i === 0
+                            const prevStart: Date = i === 0
                               ? (parseDDMMYYYY(newUser.joiningDate) || new Date())
                               : (previousEndDate || new Date());
                             previousEndDate = new Date(prevStart);
@@ -2519,7 +2522,7 @@ export const AdminDashboard: React.FC = () => {
                           type: b.type || 'Job',
                           periodMonths: periodMonths,
                           startDate: bondStartDate,
-                          salary: parseFloat(b.salary) || 0
+                          salary: b.salary ? parseFloat(b.salary) || 0 : undefined
                         };
                       }),
                       salaryBreakdown: salaryBreakdownRows.map(row => ({
@@ -2951,7 +2954,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* Current Salary/Stipend */}
-                  {bondInfo.currentSalary > 0 && (
+                  {bondInfo.currentSalary && bondInfo.currentSalary > 0 && (
                     <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                       <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
                         Current {bondInfo.currentBond?.type === 'Internship' ? 'Stipend' : 'Salary'}
@@ -3034,7 +3037,7 @@ export const AdminDashboard: React.FC = () => {
                         for (let i = 0; i < bondIndex; i++) {
                           const prevBond = filteredBonds[i];
                           const prevPeriodMonths = parseInt(prevBond.periodMonths) || 0;
-                          const prevStart = i === 0
+                          const prevStart: Date = i === 0
                             ? (parseDDMMYYYY(editUserForm.joiningDate) || new Date())
                             : (previousEndDate || new Date());
                           previousEndDate = new Date(prevStart);
@@ -3232,7 +3235,7 @@ export const AdminDashboard: React.FC = () => {
                               for (let i = 0; i < index; i++) {
                                 const prevBond = editUserForm.bonds[i];
                                 if (prevBond.periodMonths && parseInt(prevBond.periodMonths) > 0) {
-                                  const prevStart = i === 0
+                                  const prevStart: Date = i === 0
                                     ? (parseDDMMYYYY(editUserForm.joiningDate) || new Date(editUserForm.joiningDate))
                                     : previousEndDate || new Date(editUserForm.joiningDate);
                                   previousEndDate = new Date(prevStart);

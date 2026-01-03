@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { BreakType, LeaveCategory, LeaveStatus, User } from '../types';
-import { getTodayStr, formatDuration, formatTime, formatDate, convertToDDMMYYYY } from '../services/utils';
+import { BreakType, LeaveCategory, LeaveStatus, type User } from '../types';
+import { getTodayStr, formatDuration, formatTime, formatDate } from '../services/utils';
 import { Clock, Coffee, AlertCircle, Bell, Calendar, X } from 'lucide-react';
 import { notificationAPI } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -143,7 +143,16 @@ export const EmployeeDashboard: React.FC = () => {
   }, [todayRecord, localCheckInTime, localBreakStartTime]);
 
   // Leave Form State
-  const [leaveForm, setLeaveForm] = useState({
+  const [leaveForm, setLeaveForm] = useState<{
+    start: string;
+    end: string;
+    type: LeaveCategory;
+    reason: string;
+    halfDayTime: string;
+    halfDayLeaveType: string;
+    startTime: string;
+    endTime: string;
+  }>({
     start: '',
     end: '',
     type: LeaveCategory.PAID,
@@ -177,17 +186,6 @@ export const EmployeeDashboard: React.FC = () => {
     return todayDate >= startDate && todayDate <= endDate;
   });
   const isOnLeaveToday = !!todayLeave;
-  // Filter out pending leaves from display - only show approved/rejected in history
-  const myLeavesHistory = myLeaves.filter(l => {
-    const status = String(l.status || '').trim();
-    // Show only approved or rejected leaves (exclude pending)
-    return status === 'Approved' || status === LeaveStatus.APPROVED ||
-      status === 'Rejected' || status === LeaveStatus.REJECTED;
-  }).sort((a, b) => {
-    const dateA = new Date(a.createdAt || a.startDate).getTime();
-    const dateB = new Date(b.createdAt || b.startDate).getTime();
-    return dateB - dateA; // Most recent first
-  });
 
   // Get current month leaves (all statuses - pending, approved, rejected)
   const now = new Date();
@@ -504,7 +502,7 @@ export const EmployeeDashboard: React.FC = () => {
 
         if (hasTimeFields) {
           // Calculate hours per day: (end time - start time)
-          const hoursPerDay = calculateHoursPerDay(leave.startTime, leave.endTime);
+          const hoursPerDay = calculateHoursPerDay(leave.startTime as any, leave.endTime as any );
 
           // Calculate number of days (excluding Sundays and holidays)
           const numberOfDays = calculateLeaveDays(leave.startDate, leave.endDate);
@@ -1509,7 +1507,8 @@ export const EmployeeDashboard: React.FC = () => {
 
                       // Get end time for half day leave
                       const isHalfDay = leave.category === LeaveCategory.HALF_DAY;
-                      const isApproved = (leave.status === 'Approved' || leave.status === LeaveStatus.APPROVED);
+                      const leaveStatus = String(leave.status || '').trim();
+                      const isApproved = leaveStatus === 'Approved' || leaveStatus === LeaveStatus.APPROVED;
                       const halfDayEndTime = isHalfDay && isApproved && leave.startTime
                         ? (leave.endTime || calculateHalfDayEndTime(leave.startTime))
                         : null;
@@ -1527,8 +1526,8 @@ export const EmployeeDashboard: React.FC = () => {
                           <td className="px-4 py-3">{leave.category}</td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-1 text-[10px] rounded-full font-bold uppercase tracking-wider
-                              ${(leave.status === 'Approved' || leave.status === LeaveStatus.APPROVED) ? 'bg-green-100 text-green-700' :
-                                (leave.status === 'Rejected' || leave.status === LeaveStatus.REJECTED) ? 'bg-red-100 text-red-700' :
+                              ${isApproved ? 'bg-green-100 text-green-700' :
+                                (leaveStatus === 'Rejected' || leaveStatus === LeaveStatus.REJECTED) ? 'bg-red-100 text-red-700' :
                                   'bg-yellow-100 text-yellow-700'}`}>
                               {leave.status}
                             </span>

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { LeaveStatus, Role, LeaveCategory, User } from '../types';
+import { LeaveStatus, Role, LeaveCategory, type User } from '../types';
 import { formatDate, formatDuration, getTodayStr, convertToDDMMYYYY, convertToYYYYMMDD, calculateBondRemaining, parseDDMMYYYY } from '../services/utils';
-import { calculateSalaryBreakdown, SalaryBreakdownRow } from '../services/salaryBreakdownUtils';
+import { calculateSalaryBreakdown, type SalaryBreakdownRow } from '../services/salaryBreakdownUtils';
 import { Check, X, Calendar, Plus, ChevronDown, ChevronUp, AlertCircle, Clock, UserPlus, PenTool, Coffee, TrendingUp, TrendingDown, CheckCircle, Timer, LogIn, LogOut, Users, FileText, BookOpen, HelpCircle, ArrowRight, Trash2, Key } from 'lucide-react';
 import { attendanceAPI, holidayAPI, userAPI } from '../services/api';
 
@@ -41,8 +41,8 @@ export const HRDashboard: React.FC = () => {
   });
   const [salaryBreakdownRows, setSalaryBreakdownRows] = useState<SalaryBreakdownRow[]>([]);
   const [salaryBreakdownData, setSalaryBreakdownData] = useState<{ [key: string]: number }>({});
-  const [editSalaryBreakdownRows, setEditSalaryBreakdownRows] = useState<SalaryBreakdownRow[]>([]);
-  const [editSalaryBreakdownData, setEditSalaryBreakdownData] = useState<{ [key: string]: number }>({});
+  const [_editSalaryBreakdownRows, setEditSalaryBreakdownRows] = useState<SalaryBreakdownRow[]>([]);
+  const [_editSalaryBreakdownData, setEditSalaryBreakdownData] = useState<{ [key: string]: number }>({});
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
   const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
   const [selectedUserForReset, setSelectedUserForReset] = useState<User | null>(null);
@@ -54,7 +54,7 @@ export const HRDashboard: React.FC = () => {
   const [paidLeaveAllocation, setPaidLeaveAllocation] = useState({ userId: '', allocation: '' });
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState<{ [key: string]: string }>({});
-  const [hrLeaveStatusFilter, setHrLeaveStatusFilter] = useState<'All' | LeaveStatus.APPROVED | LeaveStatus.REJECTED | LeaveStatus.PENDING>('All');
+  const [hrLeaveStatusFilter, setHrLeaveStatusFilter] = useState<'All' | typeof LeaveStatus.APPROVED | typeof LeaveStatus.REJECTED | typeof LeaveStatus.PENDING>('All');
   const [hrLeaveFilterDate, setHrLeaveFilterDate] = useState('');
   const [hrLeaveFilterMonth, setHrLeaveFilterMonth] = useState('');
 
@@ -217,7 +217,7 @@ export const HRDashboard: React.FC = () => {
 
   const filterLeavesForHR = (
     leaves: any[],
-    statusFilter: 'All' | LeaveStatus.APPROVED | LeaveStatus.REJECTED | LeaveStatus.PENDING,
+    statusFilter: 'All' | typeof LeaveStatus.APPROVED | typeof LeaveStatus.REJECTED | typeof LeaveStatus.PENDING,
     filterDate: string,
     filterMonth: string
   ) => {
@@ -307,7 +307,7 @@ export const HRDashboard: React.FC = () => {
   };
 
   // Helper function to calculate extra time leave balance and carryover
-  const calculateEmployeeBalance = (userId: string, monthRecords: any[], monthLeaves: any[]) => {
+  const calculateEmployeeBalance = (_userId: string, monthRecords: any[], monthLeaves: any[]) => {
     // Calculate extra time leave hours taken
     const extraTimeLeaveHours = monthLeaves
       .filter(leave => {
@@ -508,7 +508,7 @@ export const HRDashboard: React.FC = () => {
               for (let i = 0; i < bondIndex; i++) {
                 const prevBond = filteredBonds[i];
                 const prevPeriodMonths = parseInt(prevBond.periodMonths) || 0;
-                const prevStart = i === 0
+                const prevStart: Date = i === 0
                   ? (parseDDMMYYYY(newUser.joiningDate) || new Date())
                   : (previousEndDate || new Date());
                 previousEndDate = new Date(prevStart);
@@ -523,9 +523,10 @@ export const HRDashboard: React.FC = () => {
             }
 
             return {
-              type: b.type || 'Job',
+              type: (b.type || 'Job') as 'Internship' | 'Job' | 'Other',
               periodMonths: periodMonths,
               startDate: bondStartDate,
+              order: bondIndex,
               salary: b.salary ? parseFloat(b.salary) : 0
             };
           }),
@@ -533,7 +534,10 @@ export const HRDashboard: React.FC = () => {
             month: row.month,
             year: row.year,
             amount: salaryBreakdownData[`${row.month}-${row.year}`] || row.salary,
-            currency: 'INR'
+            bondType: row.bondType,
+            startDate: row.startDate,
+            endDate: row.endDate,
+            isPartialMonth: row.isPartialMonth
           }))
         });
         setNewUser({
@@ -852,8 +856,6 @@ export const HRDashboard: React.FC = () => {
               <tbody>
                 {employeeStats.map(stat => {
                   const balance = stat.balance || calculateEmployeeBalance(stat.user.id, stat.records, leaveRequests.filter(l => l.userId === stat.user.id && l.status === LeaveStatus.APPROVED));
-                  const now = new Date();
-                  const isMonthEnd = now.getDate() === new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
                   return (
                     <tr key={stat.user.id} className="bg-white border-b hover:bg-gray-50">
@@ -1205,7 +1207,7 @@ export const HRDashboard: React.FC = () => {
                                       <tbody>
                                         {extraTimeRecords.map(r => {
                                           const checkIn = new Date(r.checkIn!).getTime();
-                                          const checkOut = new Date(r.checkOut).getTime();
+                                          const checkOut = r.checkOut ? new Date(r.checkOut).getTime() : 0;
                                           const breakSec = getBreakSeconds(r.breaks) || 0;
                                           const netWorked = Math.floor((checkOut - checkIn) / 1000) - breakSec;
                                           const extra = netWorked - MAX_NORMAL_SECONDS;
@@ -2341,7 +2343,7 @@ export const HRDashboard: React.FC = () => {
                   </div>
 
                   {/* Current Salary/Stipend */}
-                  {bondInfo.currentSalary > 0 && (
+                  {bondInfo.currentSalary && bondInfo.currentSalary > 0 && (
                     <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                       <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
                         Current {bondInfo.currentBond?.type === 'Internship' ? 'Stipend' : 'Salary'}
@@ -2372,7 +2374,7 @@ export const HRDashboard: React.FC = () => {
             className="fixed inset-0 bg-black/50 z-50"
             onClick={() => {
               setEditingUser(null);
-              setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], guardianMobileNumber: '' });
+              setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], aadhaarNumber: '', guardianName: '', mobileNumber: '', guardianMobileNumber: '' });
             }}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -2382,7 +2384,7 @@ export const HRDashboard: React.FC = () => {
                 <button
                   onClick={() => {
                     setEditingUser(null);
-                    setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], guardianMobileNumber: '' });
+                    setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], aadhaarNumber: '', guardianName: '', mobileNumber: '', guardianMobileNumber: '' });
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -2422,7 +2424,7 @@ export const HRDashboard: React.FC = () => {
                         for (let i = 0; i < bondIndex; i++) {
                           const prevBond = filteredBonds[i];
                           const prevPeriodMonths = parseInt(prevBond.periodMonths) || 0;
-                          const prevStart = i === 0
+                          const prevStart: Date = i === 0
                             ? (parseDDMMYYYY(editUserForm.joiningDate) || new Date())
                             : (previousEndDate || new Date());
                           previousEndDate = new Date(prevStart);
@@ -2437,9 +2439,10 @@ export const HRDashboard: React.FC = () => {
                       }
 
                       return {
-                        type: b.type || 'Job',
+                        type: (b.type || 'Job') as 'Internship' | 'Job' | 'Other',
                         periodMonths: periodMonths,
                         startDate: bondStartDate,
+                        order: bondIndex,
                         salary: b.salary ? parseFloat(b.salary) : 0
                       };
                     });
@@ -2448,7 +2451,7 @@ export const HRDashboard: React.FC = () => {
                   await userAPI.updateUser(editingUser.id, updates);
                   alert('User updated successfully!');
                   setEditingUser(null);
-                  setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], guardianMobileNumber: '' });
+                  setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], aadhaarNumber: '', guardianName: '', mobileNumber: '', guardianMobileNumber: '' });
                   await refreshData();
                 } catch (error: any) {
                   alert(error.message || 'Failed to update user');
@@ -2604,7 +2607,7 @@ export const HRDashboard: React.FC = () => {
                               for (let i = 0; i < index; i++) {
                                 const prevBond = editUserForm.bonds[i];
                                 if (prevBond.periodMonths && parseInt(prevBond.periodMonths) > 0) {
-                                  const prevStart = i === 0
+                                  const prevStart: Date = i === 0
                                     ? (parseDDMMYYYY(editUserForm.joiningDate) || new Date(editUserForm.joiningDate))
                                     : previousEndDate || new Date(editUserForm.joiningDate);
                                   previousEndDate = new Date(prevStart);
@@ -2707,7 +2710,7 @@ export const HRDashboard: React.FC = () => {
                     variant="secondary"
                     onClick={() => {
                       setEditingUser(null);
-                      setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], guardianMobileNumber: '' });
+                      setEditUserForm({ name: '', email: '', department: '', joiningDate: '', bonds: [], aadhaarNumber: '', guardianName: '', mobileNumber: '', guardianMobileNumber: '' });
                     }}
                   >
                     Cancel
@@ -2960,7 +2963,7 @@ export const HRDashboard: React.FC = () => {
                                 for (let i = 0; i < index; i++) {
                                   const prevBond = newUser.bonds[i];
                                   if (prevBond.periodMonths && parseInt(prevBond.periodMonths) > 0) {
-                                    const prevStart = i === 0
+                                    const prevStart: Date = i === 0
                                       ? (parseDDMMYYYY(newUser.joiningDate) || new Date(newUser.joiningDate))
                                       : previousEndDate || new Date(newUser.joiningDate);
                                     previousEndDate = new Date(prevStart);
