@@ -64,7 +64,7 @@ export const Login: React.FC = () => {
   const fetchUsers = async () => {
     try {
       const data = await userAPI.getAllUsers();
-      setUsers(Array.isArray(data) ? data : []);
+      setUsers(data);
       setSuccess(''); // Clear the loading success message so it doesn't obstruct the view
     } catch (err) {
       console.error('Failed to fetch users', err);
@@ -371,7 +371,7 @@ export const Login: React.FC = () => {
                     <div className="flex gap-3 pt-2">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         className="flex-1"
                         onClick={() => setSelectedUserForReset(null)}
                       >

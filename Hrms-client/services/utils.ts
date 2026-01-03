@@ -1,4 +1,4 @@
-import type { Attendance, Bond, Break } from '../types.ts';
+import { Attendance, Bond, Break } from '../types';
 
 // Business Rules
 // BR1: Low Time < 8:08 (488 mins), Extra Time > 8:20 (500 mins)
