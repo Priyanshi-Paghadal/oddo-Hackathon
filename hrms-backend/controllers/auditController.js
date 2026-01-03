@@ -1,18 +1,18 @@
 import AuditLog from '../models/AuditLog.js';
+import User from '../models/User.js';
 
 export const logAction = async (actorId, actorName, action, targetType, targetId, details, beforeData = null, afterData = null) => {
   try {
-    const log = new AuditLog({
-      actorId,
+    const auditLog = await AuditLog.create({
+      actorId: actorId ? actorId : null,
       actorName,
       action,
       targetType,
-      targetId,
-      beforeData,
-      afterData,  
+      targetId: targetId ? targetId.toString() : null,
+      beforeData: beforeData ? (typeof beforeData === 'string' ? beforeData : JSON.stringify(beforeData)) : null,
+      afterData: afterData ? (typeof afterData === 'string' ? afterData : JSON.stringify(afterData)) : null,
       details
     });
-    await log.save();
   } catch (error) {
     console.error('Error logging action:', error);
   }
@@ -21,7 +21,19 @@ export const logAction = async (actorId, actorName, action, targetType, targetId
 export const getAuditLogs = async (req, res) => {
   try {
     const { limit = 100 } = req.query;
-    const logs = await AuditLog.find({ limit: parseInt(limit) });
+    const logs = await AuditLog.findAll({
+      // include: [{
+      //   model: User,
+      //   as: 'actor',
+      //   attributes: ['name', 'username']
+      // }],
+      // Note: User model might not be associated with AuditLog yet.
+      // Given simple logging, we store actorName directly, so association is optional but good.
+      // For now, we rely on the stored actorName or just fetch raw logs.
+      // But let's leave association out if not defined to prevent errors.
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit)
+    });
 
     res.json(logs);
   } catch (error) {
