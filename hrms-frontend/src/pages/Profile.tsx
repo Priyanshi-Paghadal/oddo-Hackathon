@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Card } from '../components/ui/Card';
 import { User, Mail, Building2, Calendar, CreditCard, UserCircle, Phone, FileText, Eye, EyeOff, DollarSign } from 'lucide-react';
 import { formatDate, calculateBondRemaining } from '../services/utils';
+import type { Bond } from '../types';
 
 export const Profile: React.FC = () => {
     const { auth } = useApp();
@@ -18,8 +19,6 @@ export const Profile: React.FC = () => {
     }
 
     // Calculate bond information
-    const bondInfo = calculateBondRemaining(user.bonds, user.joiningDate);
-    const currentBond = bondInfo?.currentBond;
     const allBonds = user.bonds || [];
 
     // Get current month's salary from salaryBreakdown
@@ -288,7 +287,7 @@ export const Profile: React.FC = () => {
             {allBonds.length > 0 && (
                 <Card title="Bond Details">
                     <div className="space-y-4">
-                        {allBonds.map((bond, index) => {
+                        {allBonds.map((bond: Bond, index: number) => {
                             const bondInfo = calculateBondRemaining([bond], bond.startDate);
                             const isActive = bondInfo?.currentBond !== null;
                             const remaining = bondInfo?.totalRemaining;
@@ -334,7 +333,7 @@ export const Profile: React.FC = () => {
                                                         <p className="text-sm font-medium text-gray-900 mt-0.5">
                                                             {index === allBonds.length - 1 && actualBondEndDate
                                                                 ? formatDate(actualBondEndDate)
-                                                                : bond.endDate ? formatDate(bond.endDate) : 'N/A'}
+                                                                : 'N/A'}
                                                         </p>
                                                     </div>
                                                 </div>
